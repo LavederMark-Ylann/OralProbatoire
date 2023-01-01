@@ -1,0 +1,68 @@
+version: '3.9'
+services:
+  suricata:
+    image: jasonish/suricata:6.0.9
+    networks:
+      internal_network:
+        ipv4_address: 172.20.10.1
+        aliases:
+          - eth0
+      external_network:
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_NICE
+    volumes:
+      - logs:/var/log/suricata:rw
+    command: suricata -i eth0 -k none -l /var/log/suricata
+  logstash:
+    image: logstash:8.5.3
+    networks:
+      internal_network:
+        ipv4_address: 172.20.10.2
+    volumes:
+      - logs:/var/log/suricata:ro
+    depends_on:
+      - suricata
+
+#  attacker:
+#    image: ubuntu:22.04
+#    networks:
+#      - external_network
+#    command: tail -f /dev/null
+#    depends_on:
+#      - suricata 
+#      - logstash
+  target:
+    build: 
+      context: ./Dockerfiles
+      dockerfile: Target.Dockerfile    
+    networks:
+      internal_network:
+        ipv4_address: 172.20.10.10
+    environment:
+      - TARGET_IP=172.20.10.10
+      - GATEWAY_IP=172.20.10.1
+    command: sleep 100000000
+    depends_on:
+      - suricata 
+      - logstash
+
+
+networks:
+  internal_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
+          ip_range: 172.20.10.0/24
+          gateway: 172.20.10.254
+  external_network:
+
+volumes:
+  logs:
+    driver: local
+    driver_opts:
+      o: bind
+      device: "$PWD/logs"
