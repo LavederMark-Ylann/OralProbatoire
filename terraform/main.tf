@@ -24,6 +24,10 @@ variable "TF_VAR_Probatoire_Password" {
   type = string
 }
 
+variable "TF_VAR_Probatoire_PublicIP" {
+  type = string
+}
+
 
 # Create a resource group
 resource "azurerm_resource_group" "rg" {
@@ -69,7 +73,7 @@ resource "azurerm_network_security_group" "nsg" {
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "22"
-    source_address_prefix      = "*"
+    source_address_prefix      = var.TF_VAR_Probatoire_PublicIP
     destination_address_prefix = "*"
   }
 }
@@ -104,8 +108,8 @@ resource "azurerm_virtual_machine" "vm" {
 
   storage_image_reference {
     publisher = "Canonical"
-    offer     = "UbuntuServer"
-    sku       = "20.04-LTS"
+    offer     = "0001-com-ubuntu-server-focal"
+    sku       = "20_04-lts-gen2"
     version   = "latest"
   }
 
