@@ -1,38 +1,37 @@
 version: '3.9'
 services:
   suricata:
-    image: jasonish/suricata:6.0.9
+    build: 
+      context: ./Dockerfiles
+      dockerfile: Suricata.Dockerfile
     networks:
       internal_network:
         ipv4_address: 172.20.10.1
         aliases:
           - eth0
       external_network:
+        ipv4_address: 192.168.100.1
+        aliases:
+          - eth1
     cap_add:
       - NET_ADMIN
       - NET_RAW
       - SYS_NICE
     volumes:
-      - logs:/var/log/suricata:rw
-    command: suricata -i eth0 -k none -l /var/log/suricata
+      - ./logs:/var/log/suricata:rw
+    command: >-
+      suricata -i eth0 -k none -l /var/log/suricata
+
   logstash:
     image: logstash:8.5.3
     networks:
       internal_network:
         ipv4_address: 172.20.10.2
     volumes:
-      - logs:/var/log/suricata:ro
+      - ../logs:/var/log/suricata:ro
     depends_on:
       - suricata
 
-#  attacker:
-#    image: ubuntu:22.04
-#    networks:
-#      - external_network
-#    command: tail -f /dev/null
-#    depends_on:
-#      - suricata 
-#      - logstash
   target:
     build: 
       context: ./Dockerfiles
@@ -40,14 +39,32 @@ services:
     networks:
       internal_network:
         ipv4_address: 172.20.10.10
-    environment:
-      - TARGET_IP=172.20.10.10
-      - GATEWAY_IP=172.20.10.1
-    command: sleep 100000000
+    cap_add:
+      - NET_ADMIN
+    command: >-
+      sh -c "ip route del default &&
+      ip route add default via 172.20.10.1 &&
+      tail -f /dev/null"
     depends_on:
-      - suricata 
       - logstash
 
+  attacker:
+    build: 
+      context: ./Dockerfiles
+      dockerfile: Attacker.Dockerfile
+    networks:
+      external_network:
+        ipv4_address: 192.168.100.10
+    cap_add:
+      - NET_ADMIN
+    command: >-
+      sh -c "ip route del default &&
+      ip route add default via 192.168.100.1 &&
+      tail -f /dev/null"
+    environment:
+      - TARGET_IP=172.20.10.10
+    depends_on:
+      - target
 
 networks:
   internal_network:
@@ -57,12 +74,10 @@ networks:
       config:
         - subnet: 172.20.0.0/16
           ip_range: 172.20.10.0/24
-          gateway: 172.20.10.254
   external_network:
-
-volumes:
-  logs:
-    driver: local
-    driver_opts:
-      o: bind
-      device: "$PWD/logs"
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.0.0/16
+          ip_range: 192.168.100.0/24
