@@ -24,6 +24,7 @@ variable "TF_VAR_Probatoire_Password" {
   type = string
 }
 
+# Public IP address of your current machine. Limit access by SSH to this IP address.
 variable "TF_VAR_Probatoire_PublicIP" {
   type = string
 }
@@ -99,12 +100,14 @@ resource "azurerm_virtual_machine" "vm" {
   resource_group_name   = azurerm_resource_group.rg.name
   network_interface_ids = [azurerm_network_interface.nic.id]
   vm_size               = "Standard_B1s"
+  #vm_size               = "Standard_A4_v2"
 
   storage_os_disk {
     name          = "osdisk"
     caching       = "ReadWrite"
     create_option = "FromImage"
   }
+  delete_os_disk_on_termination = true
 
   storage_image_reference {
     publisher = "Canonical"
