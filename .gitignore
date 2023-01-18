@@ -1,5 +1,6 @@
 datasets/*
-pcaps/*
+pcap/*
 terraform/*
+logs/*
 !terraform/main.tf
 !.gitignore

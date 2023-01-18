@@ -9,54 +9,49 @@ services:
         ipv4_address: 172.20.10.2
         aliases:
           - eth0
-      external_network:
-        ipv4_address: 192.168.100.2
-        aliases:
-          - eth1
-    cap_add:
-      - NET_ADMIN
-      - NET_RAW
-      - SYS_NICE
     volumes:
       - ./logs:/var/log/suricata:rw
-      
-    #suricata -i eth0 -k none -l /var/log/suricataa
+      - ./Dockerfiles/files/suricata.yaml:/etc/suricata/suricata.yaml:ro
+      - ./Dockerfiles/files/telegraf.config:/etc/telegraf/telegraf.config:ro
+      - ./Dockerfiles/scripts/suricata.sh:/script/suricata.sh
+      - /mnt/e/pcaps/all/:/pcap/
+    depends_on:
+      questdb:
+        condition: service_healthy
 
-#  logstash:
-#    image: logstash:8.5.3
-#    networks:
-#      internal_network:
-#        ipv4_address: 172.20.10.3
-#    volumes:
-#      - ../logs:/var/log/suricata:ro
-#    depends_on:
-#      - suricata
-
-  target:
+  questdb:
     build: 
       context: ./Dockerfiles
-      dockerfile: Target.Dockerfile    
+      dockerfile: Questdb.Dockerfile
     networks:
       internal_network:
         ipv4_address: 172.20.10.10
-    cap_add:
-      - NET_ADMIN
-#    depends_on:
-#      - logstash
+    ports:
+      - 8812
+      - 9000:9000
+      - 9009
+    volumes:
+      - /mnt/e/memoire_db:/root/.questdb/
+    healthcheck:
+      test: ["CMD", "curl", "-v", "http://127.0.0.1:9003"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
-  attacker:
-    build: 
-      context: ./Dockerfiles
-      dockerfile: Attacker.Dockerfile
+  grafana:
+    image: grafana/grafana:9.3.2
     networks:
-      external_network:
-        ipv4_address: 192.168.100.10
-    cap_add:
-      - NET_ADMIN
+      internal_network:
+        ipv4_address: 172.20.10.20
+    ports:
+      - 3000:3000
     environment:
-      - TARGET_IP=172.20.10.10
-#    depends_on:
-#      - target
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_PATHS_DATA=/var/lib/grafana
+    volumes:
+      - ./grafana:/var/lib/grafana:rwx
+    depends_on:
+      - suricata
 
 networks:
   internal_network:
@@ -66,10 +61,3 @@ networks:
       config:
         - subnet: 172.20.10.0/24
           ip_range: 172.20.10.0/24
-  external_network:
-    driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: 192.168.100.0/24
-          ip_range: 192.168.100.0/24

@@ -1,8 +1,13 @@
 FROM jasonish/suricata:6.0.9
 
-# Install iproute2 and add default route to suricata
-RUN dnf update -y && dnf install kmod iptables -y
+#COPY files/suricata.yaml /etc/suricata/suricata.yaml
+COPY files/influxdb.repo /etc/yum.repos.d/influxdb.repo
 
-COPY files/suricata.sh /script/suricata.sh
+RUN dnf install telegraf -y
+
+WORKDIR /pcap
+
+#COPY files/telegraf.config /etc/telegraf/telegraf.config
+#COPY scripts/suricata.sh /script/suricata.sh
 
 ENTRYPOINT ["/script/suricata.sh"]
