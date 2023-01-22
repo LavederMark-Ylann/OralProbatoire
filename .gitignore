@@ -2,5 +2,6 @@ datasets/*
 pcap/*
 terraform/*
 logs/*
+!logs/suricata.log
 !terraform/main.tf
 !.gitignore
