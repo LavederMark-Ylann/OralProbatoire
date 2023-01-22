@@ -51,7 +51,8 @@ services:
     volumes:
       - ./grafana:/var/lib/grafana:rwx
     depends_on:
-      - suricata
+      questdb:
+        condition: service_healthy
 
 networks:
   internal_network:
